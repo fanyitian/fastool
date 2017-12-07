@@ -1,0 +1,10 @@
+#!/bin/bash
+
+os_name=$(uname)
+if [[ $os_name == "Darwin" ]];then
+	ifconfig en0 |grep "inet " | sed "s/^.*inet //g" | sed "s/ netmask.*$//g"
+elif [[ $os_name == "Linux" ]]; then
+	ifconfig eth1 |grep "inet " | sed "s/^.*inet addr://g" | sed "s/ Bcast.*$//g"
+else
+	ifconfig
+fi

@@ -1,0 +1,7 @@
+# brt配置文件，请配置 name1=command 格式；
+# 注释，请以 # 号开头
+
+# example
+example = echo "this is example"
+
+machine 1 = ssh root@101.132.41.110

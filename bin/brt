@@ -1,0 +1,161 @@
+#!/bin/bash
+#
+# 快捷方式执行命令
+#   conf_file需要满足如下格式：
+#       xxx_name1 = command
+#       xxx_name2 = command
+#
+# author: yitian920@163.com
+# version: 1.0
+# date: 2017-08-18
+
+#文件名
+DIR=$(cd $(dirname $0)"/.."; pwd)
+conf_file="$DIR/data/brt.conf"
+
+#分隔符
+rs='='
+command_num=$1
+red_str="\033[31m %s \033[0m"
+arr_list=()
+
+# 获取其他参数
+params_nums=$#
+cmd_params=""
+for ((i=2; i<=$params_nums; i++))
+do
+    j=${!i}
+    cmd_params="${cmd_params} $j"
+done
+
+
+load_file(){
+    if [[ ! -f "$conf_file" ]]; then 
+        printf "$red_str%s\n\n" "[error]" "${conf_file} not exists!"
+        echo "请添加配置文件，如下格式:"
+        echo " xxx_name1 = command"
+        echo " xxx_name2 = command"
+        exit 1
+    fi
+
+    while read line 
+    do
+        if [[ -n $line && $line =~ ^[^#] ]]; then
+            arr_list=("${arr_list[@]}" "${line}")
+        fi
+    done < "$conf_file"
+}
+
+details(){
+    for (( i = 0; i < ${#arr_list[@]}; i++ )); do
+        num=$((i + 1))
+        line=${arr_list[$i]}
+        KEY="${line%%=*}"
+        VALUE="${line##*=}"
+        printf "%-4s %-25s %s\n" "["${num}"]" "$KEY" "$VALUE"
+    done
+    # awk -F '=' '{if(NF>0 && $1!~/#/) printf "%-4s %-25s %s\n", "["NR"]", $1, $2}' $conf_file
+}
+
+views(){
+    for (( i = 0; i < ${#arr_list[@]}; i++ )); do
+        line=${arr_list[$i]}
+        KEY="${line%%=*}"
+        VALUE="${line##*=}"
+        num=$((i + 1))
+        printf "%-4s %-25s %s\n" "["${num}"]" "$KEY"
+    done
+    # awk -F '=' '{if(NF>0 && $1!~/#/) printf "%-4s %-25s \n", "["NR"]", $1}' $conf_file
+}
+ 
+execute(){
+    #执行$command_num的命令
+    commands=''
+    for (( i = 0; i < ${#arr_list[@]}; i++ )); do
+        line=${arr_list[$i]}
+        KEY="${line%%=*}"
+        VALUE="${line##*=}"
+        num=$((i + 1))
+        if [[ $command_num == $num ]]; then
+            commands="$VALUE"
+        fi
+    done
+    if [[ -n $commands ]]; then
+        eval "$commands $cmd_params" 
+    fi
+}
+
+process(){
+    if [[ $command_num != *[!0-9]*  && $command_num -gt 0 && $command_num -le ${#arr_list[@]} ]]; then
+        execute
+    else
+        views
+    fi
+}
+
+edit(){
+    eval "vim $conf_file"
+}
+
+add(){
+    echo "请按以下格式，添加一条记录."
+    echo "（如: machine 1 = ssh root@101.93.12.33）"
+    echo ""
+
+    read ans
+
+    if [[ ! $ans == *=* ]]; then
+        echo "格式错误，请输入正确格式: xxx_name1 = command"
+        exit 1
+    fi
+
+    echo $ans >> $conf_file
+    echo "添加完成..."
+
+    arr_list=()
+    load_file
+    views
+}
+
+help(){
+    echo "Usage: brt [options] <number>"
+    echo "Options: "
+    printf "\t-h\t显示帮助\n"
+    printf "\t-l\t显示详细列表\n"
+    printf "\t-e\t编辑配置文件conf\n"
+    printf "\t-a\t添加一行配置\n"
+}
+
+
+# 导入数据
+load_file
+opt=0
+while getopts "hlea" arg
+do
+    case $arg in
+        h)
+            help
+            opt=1
+            ;;
+        e) 
+            edit
+            opt=1
+            ;;
+        a)
+            add
+            opt=1
+            ;;
+        l)
+            details
+            opt=1
+            ;;
+        ?)  #当有不认识的选项的时候arg为?
+            help
+            opt=1
+            ;;
+    esac
+done
+
+if [[ $opt -eq 0 ]]; then
+    process
+fi
